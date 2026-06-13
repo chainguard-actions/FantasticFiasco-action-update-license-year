@@ -9,6 +9,7 @@ Hardened by [Chainguard](https://www.chainguard.dev) from the upstream action at
 | Version | Tag | Upstream commit |
 |---------|-----|-----------------|
 | v3.0.0 | [`v3.0.0`](https://github.com/chainguard-actions/FantasticFiasco-action-update-license-year/tree/v3.0.0) | [`00b7495`](https://github.com/FantasticFiasco/action-update-license-year/commit/00b7495233bb4a9229204b2bd3e2a6df7551e155) |
+| v3.0.4 | [`v3.0.4`](https://github.com/chainguard-actions/FantasticFiasco-action-update-license-year/tree/v3.0.4) | [`f180e96`](https://github.com/FantasticFiasco/action-update-license-year/commit/f180e962fa988db222d8f03ef4636750312d1b3d) |
 
 ## Privacy
 

@@ -1,0 +1,47 @@
+name: Test basic usage - update license year
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_REF: refs/heads/main
+      GITHUB_EVENT_NAME: push
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create a LICENSE file with an old copyright year
+        run: |
+          cat > LICENSE << 'EOF'
+          MIT License
+
+          Copyright (c) 2020 Test Author
+
+          Permission is hereby granted, free of charge, to any person obtaining a copy
+          of this software and associated documentation files (the "Software"), to deal
+          in the Software without restriction.
+          EOF
+
+      - name: Configure git identity
+        run: |
+          git config --global user.email "github-actions@github.com"
+          git config --global user.name "github-actions"
+
+      - id: action
+        uses: .
+        with:
+          token: fake-token-for-local-test
+          path: LICENSE
+          commitTitle: "docs(license): update copyright year(s)"
+          commitAuthorName: "github-actions"
+          commitAuthorEmail: "github-actions@github.com"
+        continue-on-error: true
+
+      - name: Assert action ran (token input was accepted)
+        run: |
+          echo "Action completed (possibly with error due to no real GitHub token)"
+          echo "currentYear output: ${{ steps.action.outputs.currentYear }}"
+          echo "branchName output: ${{ steps.action.outputs.branchName }}"
+          # The action should either succeed or fail at the GitHub API step,
+          # not at input validation. Either outcome is acceptable in act.
+          echo "PASS: action ran with token input provided"

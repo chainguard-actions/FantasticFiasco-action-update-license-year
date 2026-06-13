@@ -1,0 +1,51 @@
+{
+  "name": "action-update-license-year",
+  "version": "3.0.4",
+  "description": "GitHub Action that in a pull request updates the copyright year(s) in your license file.",
+  "keywords": [
+    "github",
+    "github-actions",
+    "license"
+  ],
+  "private": true,
+  "homepage": "https://github.com/FantasticFiasco/action-update-license-year",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/FantasticFiasco/action-update-license-year.git"
+  },
+  "bugs": {
+    "url": "https://github.com/FantasticFiasco/action-update-license-year/issues"
+  },
+  "author": "Mattias Kindborg <mattias.kindborg@gmail.com> (https://twitter.com/FantasticFiasco)",
+  "license": "Apache-2.0",
+  "main": "./dist/index.js",
+  "scripts": {
+    "type-check": "tsc --noEmit",
+    "test": "jest",
+    "lint": "prettier --check . && eslint .",
+    "lint:fix": "prettier --write . && eslint --fix . ",
+    "coverage": "jest --coverage",
+    "dist": "rm -rf ./dist && ncc build ./src/index.js",
+    "release": "npm run dist && node ./scripts/generate-docs.js"
+  },
+  "dependencies": {
+    "@actions/core": "2.0.1",
+    "@actions/github": "6.0.1",
+    "@actions/glob": "0.5.0"
+  },
+  "devDependencies": {
+    "@eslint/json": "0.14.0",
+    "@eslint/markdown": "7.5.1",
+    "@types/jest": "30.0.0",
+    "@types/js-yaml": "4.0.9",
+    "@types/node": "24.10.4",
+    "@vercel/ncc": "0.38.4",
+    "eslint": "9.39.2",
+    "eslint-config-prettier": "10.1.8",
+    "eslint-plugin-prettier": "5.5.4",
+    "jest": "30.1.3",
+    "js-yaml": "4.1.1",
+    "prettier": "3.7.4",
+    "typescript": "5.9.3"
+  }
+}

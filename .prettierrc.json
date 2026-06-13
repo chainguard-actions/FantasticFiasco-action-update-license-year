@@ -1,0 +1,13 @@
+{
+  "endOfLine": "lf",
+  "printWidth": 120,
+  "semi": false,
+  "singleQuote": true,
+  "useTabs": false,
+  "overrides": [
+    { "files": ["*.js", "*.mjs", "*.cjs"], "options": { "tabWidth": 4 } },
+    { "files": ["*.json", "*.jsonc"], "options": { "tabWidth": 2, "trailingComma": "none" } },
+    { "files": ["*.md"], "options": { "tabWidth": 4 } },
+    { "files": ["*.yml", "*.yaml"], "options": { "singleQuote": true, "tabWidth": 2 } }
+  ]
+}

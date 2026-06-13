@@ -1,0 +1,20 @@
+/* Visit https://aka.ms/tsconfig.json to read more about this file */
+{
+  "compilerOptions": {
+    /******************************** TYPE CHECKING ******************************/
+    "strict": true,
+    /*********************************** MODULES *********************************/
+    "module": "commonjs",
+    /***************************** JAVASCRIPT SUPPORT ****************************/
+    "allowJs": true,
+    /***************************** INTEROP CONSTRAINTS ***************************/
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    /************************** LANGUAGE & ENVIRONMENT ***************************/
+    "lib": ["ES2021"],
+    "target": "ES2021",
+    /******************************** COMPLETENESS *******************************/
+    "skipLibCheck": true
+  },
+  "exclude": ["./coverage/*", "./dist/*"]
+}

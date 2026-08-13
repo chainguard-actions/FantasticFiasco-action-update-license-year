@@ -1,0 +1,56 @@
+name: Test license already up-to-date
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Set up local git remote to avoid network dependency
+        run: |
+          # Create a local bare repository to serve as the git remote
+          git init --bare /tmp/test-remote-uptodate.git
+          # Point origin to the local bare repo
+          git remote set-url origin /tmp/test-remote-uptodate.git
+          # Push the current branch so the remote is initialized
+          git push origin HEAD:act-harness
+
+      - name: Create a LICENSE file with current year in MIT format
+        run: |
+          CURRENT_YEAR=$(date +%Y)
+          # MIT license format that matches the APACHE_2_MIT default transform.
+          # The default transform uses a lookbehind for "Copyright " and matches
+          # just the year. Since the year is already current, no changes will be made.
+          printf "MIT License\n\nCopyright %s Test Author\n\nPermission is hereby granted, free of charge, to any person obtaining a copy of this software.\n" "$CURRENT_YEAR" > "$GITHUB_WORKSPACE/LICENSE_UPTODATE_TEST"
+          echo "Created LICENSE_UPTODATE_TEST with year: $CURRENT_YEAR"
+          cat "$GITHUB_WORKSPACE/LICENSE_UPTODATE_TEST"
+
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          path: LICENSE_UPTODATE_TEST
+          branchName: "test/act-uptodate-{{currentYear}}"
+          commitTitle: "test: update license year (act test)"
+
+      - name: Assert action completed successfully (up-to-date license exits gracefully)
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+          PR_NUMBER_OUT: ${{ steps.action.outputs.pullRequestNumber }}
+        run: |
+          echo "outcome: $OUTCOME"
+          echo "pullRequestNumber output: $PR_NUMBER_OUT"
+          # When license is already up-to-date, action should succeed (not fail)
+          if [ "$OUTCOME" != "success" ]; then
+            echo "FAIL: expected action to succeed when license is already up-to-date, but outcome was '$OUTCOME'"
+            exit 1
+          fi
+          # When no changes are made, outputs should be empty (no PR created)
+          if [ -n "$PR_NUMBER_OUT" ]; then
+            echo "FAIL: expected no pull request number when license is already up-to-date, but got '$PR_NUMBER_OUT'"
+            exit 1
+          fi
+          echo "PASS: action correctly handled already-up-to-date license"

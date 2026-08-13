@@ -1,0 +1,62 @@
+name: Test valid custom transform
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Set up local git remote to avoid network dependency
+        run: |
+          # Create a local bare repository to serve as the git remote
+          git init --bare /tmp/test-remote-custom-transform.git
+          # Point origin to the local bare repo
+          git remote set-url origin /tmp/test-remote-custom-transform.git
+          # Push the current branch so the remote is initialized
+          git push origin HEAD:act-harness
+
+      - name: Create a LICENSE file with current year
+        run: |
+          CURRENT_YEAR=$(date +%Y)
+          # Custom license format that matches the custom transform below.
+          # The custom transform uses a lookbehind for "Copyright " so only the
+          # year is matched and replaced. Since the year is already current,
+          # no changes will be made and the action returns early.
+          printf "Custom License\n\nCopyright %s Test Author\n\nAll rights reserved.\n" "$CURRENT_YEAR" > "$GITHUB_WORKSPACE/LICENSE_CUSTOM_TRANSFORM_TEST"
+          echo "Created LICENSE_CUSTOM_TRANSFORM_TEST with year: $CURRENT_YEAR"
+          cat "$GITHUB_WORKSPACE/LICENSE_CUSTOM_TRANSFORM_TEST"
+
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          path: LICENSE_CUSTOM_TRANSFORM_TEST
+          # Custom transform: lookbehind for "Copyright " then capture the year.
+          # The (?<from>\d{4}) named capturing group is required by the action.
+          # Since the year is already current, no changes will be made.
+          transform: "(?<=Copyright\\s+)(?<from>\\d{4})"
+          branchName: "test/act-custom-transform-{{currentYear}}"
+          commitTitle: "test: update license year for custom transform test"
+          prTitle: "Test PR - Update license copyright year"
+
+      - name: Assert action succeeded with valid custom transform
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+          PR_NUMBER_OUT: ${{ steps.action.outputs.pullRequestNumber }}
+        run: |
+          echo "outcome: $OUTCOME"
+          echo "pullRequestNumber output: $PR_NUMBER_OUT"
+          # The action should succeed (license is already up-to-date, no PR needed)
+          if [ "$OUTCOME" != "success" ]; then
+            echo "FAIL: expected action to succeed with valid custom transform, but outcome was '$OUTCOME'"
+            exit 1
+          fi
+          # Since license is already up-to-date, no PR should be created
+          if [ -n "$PR_NUMBER_OUT" ]; then
+            echo "FAIL: expected no pull request when license is already up-to-date, but got PR '$PR_NUMBER_OUT'"
+            exit 1
+          fi
+          echo "PASS: action succeeded with valid custom transform (license already up-to-date)"

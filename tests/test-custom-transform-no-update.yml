@@ -1,0 +1,60 @@
+name: Test - Custom transform with already-current license
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Set up git identity and local origin remote
+        run: |
+          git config user.email "test@example.com"
+          git config user.name "Test User"
+          # Create a bare repo under GITHUB_WORKSPACE so git ls-remote and git push work
+          rm -rf "$GITHUB_WORKSPACE/.git-remote"
+          git init --bare "$GITHUB_WORKSPACE/.git-remote"
+          git push "$GITHUB_WORKSPACE/.git-remote" HEAD:refs/heads/act-harness
+          git remote set-url origin "$GITHUB_WORKSPACE/.git-remote" 2>/dev/null || \
+            git remote add origin "$GITHUB_WORKSPACE/.git-remote"
+
+      - name: Ensure fixture has current year
+        run: |
+          CURRENT_YEAR=$(date +%Y)
+          echo "Current year: $CURRENT_YEAR"
+          # Update the fixture to have the current year on disk (action reads from disk)
+          sed -i "s/(c) [0-9]\{4\} My Company/(c) $CURRENT_YEAR My Company/" \
+            "$GITHUB_WORKSPACE/tests/fixtures/LICENSE-custom"
+          echo "Fixture content:"
+          cat "$GITHUB_WORKSPACE/tests/fixtures/LICENSE-custom"
+
+      - id: action
+        uses: .
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          path: tests/fixtures/LICENSE-custom
+          transform: '(?<=\(c\)\s)(?<from>\d{4})(-\d{4})?'
+          branchName: test/license-custom-transform-{{currentYear}}
+          commitTitle: 'test: update custom license year'
+          prTitle: 'test: update custom license year'
+
+      - name: Assert no PR was created (no changes needed with custom transform)
+        env:
+          PR_NUMBER: ${{ steps.action.outputs.pullRequestNumber }}
+          PR_URL: ${{ steps.action.outputs.pullRequestUrl }}
+          YEAR: ${{ steps.action.outputs.currentYear }}
+        run: |
+          echo "pullRequestNumber: $PR_NUMBER"
+          echo "pullRequestUrl: $PR_URL"
+          echo "currentYear: $YEAR"
+          # When no changes are needed, outputs should be empty
+          if [ -n "$PR_NUMBER" ]; then
+            echo "FAIL: expected no PR number but got: $PR_NUMBER"
+            exit 1
+          fi
+          if [ -n "$PR_URL" ]; then
+            echo "FAIL: expected no PR URL but got: $PR_URL"
+            exit 1
+          fi
+          echo "PASS: no PR created as expected (license already up-to-date with custom transform)"

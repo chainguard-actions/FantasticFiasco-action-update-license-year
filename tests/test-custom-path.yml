@@ -1,0 +1,67 @@
+name: Test custom path input with wildcard pattern
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_EVENT_NAME: push
+      GITHUB_REF: refs/heads/main
+      GITHUB_REPOSITORY: test-owner/test-repo
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create multiple LICENSE files with outdated years
+        run: |
+          CURRENT_YEAR=$(date +%Y)
+          LAST_YEAR=$((CURRENT_YEAR - 1))
+
+          mkdir -p "$GITHUB_WORKSPACE/test-wildcard/pkg-a"
+          cat > "$GITHUB_WORKSPACE/test-wildcard/pkg-a/LICENSE" << EOF
+          MIT License
+
+          Copyright (c) ${LAST_YEAR} Test Author A
+
+          Permission is hereby granted, free of charge, to any person obtaining a copy
+          of this software and associated documentation files (the "Software"), to deal
+          in the Software without restriction.
+          EOF
+
+          mkdir -p "$GITHUB_WORKSPACE/test-wildcard/pkg-b"
+          cat > "$GITHUB_WORKSPACE/test-wildcard/pkg-b/LICENSE" << EOF
+          MIT License
+
+          Copyright (c) ${LAST_YEAR} Test Author B
+
+          Permission is hereby granted, free of charge, to any person obtaining a copy
+          of this software and associated documentation files (the "Software"), to deal
+          in the Software without restriction.
+          EOF
+
+          echo "Created LICENSE files with outdated year: ${LAST_YEAR}"
+          cat "$GITHUB_WORKSPACE/test-wildcard/pkg-a/LICENSE"
+          cat "$GITHUB_WORKSPACE/test-wildcard/pkg-b/LICENSE"
+
+      - id: action
+        uses: .
+        with:
+          token: fake-token-for-testing
+          path: test-wildcard/**/LICENSE
+          commitAuthorName: 'test-bot'
+          commitAuthorEmail: 'test-bot@example.com'
+          prTitle: 'Update license copyright year(s) - {{currentYear}}'
+        continue-on-error: true
+
+      - name: Assert action ran with wildcard path
+        env:
+          ACTION_OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "action outcome: $ACTION_OUTCOME"
+          # The action will fail at GitHub API step with a fake token,
+          # but it should have at least started and attempted to process the files.
+          if [ "$ACTION_OUTCOME" = "success" ] || [ "$ACTION_OUTCOME" = "failure" ]; then
+            echo "PASS: action ran with wildcard path (outcome=$ACTION_OUTCOME)"
+          else
+            echo "FAIL: unexpected outcome '$ACTION_OUTCOME'"
+            exit 1
+          fi

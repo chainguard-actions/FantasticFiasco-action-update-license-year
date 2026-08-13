@@ -1,0 +1,68 @@
+name: Test no update needed (license already current)
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      # Set up a local bare git repository as the remote so git ls-remote and
+      # git push work without network access or GitHub credentials.
+      - name: Set up local git remote
+        run: |
+          git init --bare /tmp/test-remote.git
+          git remote set-url origin /tmp/test-remote.git
+          git push origin act-harness
+
+      # Create a LICENSE file with the current year so no update is needed.
+      # The action reads this file from the filesystem (not from git), so
+      # creating it at runtime is sufficient.
+      - name: Create up-to-date LICENSE fixture
+        run: |
+          CURRENT_YEAR=$(date +%Y)
+          mkdir -p "$GITHUB_WORKSPACE/tests/fixtures/license-current"
+          printf "MIT License\n\nCopyright %s Test Author\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the \"Software\"), to deal\nin the Software without restriction.\n" "$CURRENT_YEAR" \
+            > "$GITHUB_WORKSPACE/tests/fixtures/license-current/LICENSE"
+
+      - id: action
+        uses: .
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          path: tests/fixtures/license-current/LICENSE
+        continue-on-error: true
+
+      - name: Assert action completed with no updates
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+          CURRENT_YEAR: ${{ steps.action.outputs.currentYear }}
+          BRANCH_NAME: ${{ steps.action.outputs.branchName }}
+        run: |
+          echo "outcome: $OUTCOME"
+          echo "currentYear output: $CURRENT_YEAR"
+          echo "branchName output: $BRANCH_NAME"
+          # When license is already up-to-date, action succeeds but sets no outputs
+          if [ "$OUTCOME" != "success" ]; then
+            echo "FAIL: expected action to succeed but got outcome=$OUTCOME"
+            exit 1
+          fi
+          # No outputs should be set when no update was needed
+          if [ -n "$CURRENT_YEAR" ]; then
+            echo "FAIL: expected no currentYear output but got: $CURRENT_YEAR"
+            exit 1
+          fi
+          if [ -n "$BRANCH_NAME" ]; then
+            echo "FAIL: expected no branchName output but got: $BRANCH_NAME"
+            exit 1
+          fi
+          echo "PASS: action completed with no updates (license already current)"
+
+      # Switch back to act-harness before cleaning up the test branch
+      - name: Clean up test branch
+        if: always()
+        run: |
+          git switch act-harness 2>/dev/null || true
+          CURRENT_YEAR=$(date +%Y)
+          BRANCH="license/copyright-to-${CURRENT_YEAR}"
+          git branch -D "$BRANCH" 2>/dev/null || true

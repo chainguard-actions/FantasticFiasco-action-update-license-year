@@ -1,0 +1,65 @@
+name: Test custom transform with already-current license
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      # Set up a local bare git repository as the remote so git ls-remote and
+      # git push work without network access or GitHub credentials.
+      - name: Set up local git remote
+        run: |
+          git init --bare /tmp/test-remote.git
+          git remote set-url origin /tmp/test-remote.git
+          git push origin act-harness
+
+      # Create a LICENSE file with the current year so no update is needed.
+      # The custom transform uses (?<from>\d{4}) to match the year after "Copyright ".
+      - name: Create up-to-date LICENSE fixture for custom transform test
+        run: |
+          CURRENT_YEAR=$(date +%Y)
+          mkdir -p "$GITHUB_WORKSPACE/tests/fixtures/license-custom-transform"
+          printf "MIT License\n\nCopyright %s Test Author\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the \"Software\"), to deal\nin the Software without restriction.\n" "$CURRENT_YEAR" \
+            > "$GITHUB_WORKSPACE/tests/fixtures/license-custom-transform/LICENSE"
+
+      - id: action
+        uses: .
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          path: tests/fixtures/license-custom-transform/LICENSE
+          # Valid custom transform with required (?<from>) named capturing group.
+          # Uses a lookbehind so only the year digits are matched (not "Copyright "),
+          # ensuring the replacement is idempotent when the year is already current.
+          transform: "(?<=Copyright )(?<from>\\d{4})"
+        continue-on-error: true
+
+      - name: Assert action succeeded with valid custom transform
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+          CURRENT_YEAR: ${{ steps.action.outputs.currentYear }}
+        run: |
+          echo "outcome: $OUTCOME"
+          echo "currentYear output: $CURRENT_YEAR"
+          # The action should succeed (license already up-to-date, no PR needed)
+          if [ "$OUTCOME" != "success" ]; then
+            echo "FAIL: expected action to succeed with valid custom transform but got outcome=$OUTCOME"
+            exit 1
+          fi
+          # No outputs should be set when no update was needed
+          if [ -n "$CURRENT_YEAR" ]; then
+            echo "FAIL: expected no currentYear output (no update needed) but got: $CURRENT_YEAR"
+            exit 1
+          fi
+          echo "PASS: action accepted valid custom transform and correctly detected no update needed"
+
+      # Switch back to act-harness before cleaning up the test branch
+      - name: Clean up test branch
+        if: always()
+        run: |
+          git switch act-harness 2>/dev/null || true
+          CURRENT_YEAR=$(date +%Y)
+          BRANCH="license/copyright-to-${CURRENT_YEAR}"
+          git branch -D "$BRANCH" 2>/dev/null || true

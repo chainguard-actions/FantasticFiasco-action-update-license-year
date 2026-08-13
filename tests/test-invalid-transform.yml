@@ -1,0 +1,31 @@
+name: Test invalid transform input
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - id: action
+        uses: .
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          path: LICENSE
+          # This transform is missing the required (?<from>) named capturing group.
+          # The action validates this before any git operations and should fail immediately.
+          transform: "\\d{4}"
+        continue-on-error: true
+
+      - name: Assert action failed with invalid transform error
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          # The action should fail because the transform has no 'from' capturing group
+          if [ "$OUTCOME" != "failure" ]; then
+            echo "FAIL: expected action to fail due to invalid transform but got outcome=$OUTCOME"
+            exit 1
+          fi
+          echo "PASS: action correctly failed with invalid transform"

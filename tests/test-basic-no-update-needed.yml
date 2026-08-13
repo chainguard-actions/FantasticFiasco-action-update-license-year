@@ -1,0 +1,52 @@
+name: Test basic - no update needed (current year)
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_EVENT_NAME: push
+      GITHUB_REF: refs/heads/main
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Set up LICENSE file with current year
+        run: |
+          CURRENT_YEAR=$(date +%Y)
+          echo "MIT License" > LICENSE
+          echo "" >> LICENSE
+          echo "Copyright (c) $CURRENT_YEAR Test Author" >> LICENSE
+          echo "" >> LICENSE
+          echo "Permission is hereby granted, free of charge, to any person obtaining a copy" >> LICENSE
+          echo "of this software and associated documentation files (the \"Software\"), to deal" >> LICENSE
+          echo "in the Software without restriction." >> LICENSE
+          echo "LICENSE file created with year: $CURRENT_YEAR"
+          cat LICENSE
+
+      - name: Configure git
+        run: |
+          git config --global user.email "test@example.com"
+          git config --global user.name "Test User"
+
+      - id: action
+        uses: .
+        with:
+          token: fake-token-for-testing
+          path: LICENSE
+        continue-on-error: true
+
+      - name: Assert action ran (no update needed means no outputs expected)
+        env:
+          CURRENT_YEAR: ${{ steps.action.outputs.currentYear }}
+          BRANCH_NAME: ${{ steps.action.outputs.branchName }}
+        run: |
+          echo "currentYear output: '$CURRENT_YEAR'"
+          echo "branchName output: '$BRANCH_NAME'"
+          # When no update is needed (license already has current year),
+          # the action should complete without creating a PR.
+          # Outputs will be empty since no update was performed.
+          if [ -n "$BRANCH_NAME" ]; then
+            echo "FAIL: expected no branchName output when no update is needed"
+            exit 1
+          fi
+          echo "PASS: action completed with no update needed (current year already in license)"

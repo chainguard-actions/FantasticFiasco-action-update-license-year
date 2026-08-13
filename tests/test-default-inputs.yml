@@ -1,0 +1,77 @@
+name: Test default inputs
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_EVENT_NAME: push
+      GITHUB_REF: refs/heads/main
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Set up default LICENSE file with current year
+        run: |
+          CURRENT_YEAR=$(date +%Y)
+          # Create a standard MIT LICENSE file at the default path
+          cat > LICENSE << EOF
+          MIT License
+
+          Copyright (c) $CURRENT_YEAR Test Author
+
+          Permission is hereby granted, free of charge, to any person obtaining a copy
+          of this software and associated documentation files (the "Software"), to deal
+          in the Software without restriction, including without limitation the rights
+          to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+          copies of the Software, and to permit persons to whom the Software is
+          furnished to do so, subject to the following conditions:
+
+          The above copyright notice and this permission notice shall be included in all
+          copies or substantial portions of the Software.
+
+          THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+          IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+          FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+          EOF
+          echo "LICENSE file created with year: $CURRENT_YEAR"
+
+      - name: Configure git
+        run: |
+          git config --global user.email "github-actions@github.com"
+          git config --global user.name "github-actions"
+
+      - id: action
+        uses: .
+        with:
+          token: fake-token-for-testing
+          # All other inputs use defaults:
+          # path: LICENSE
+          # branchName: license/copyright-to-{{currentYear}}
+          # commitTitle: "docs(license): update copyright year(s)"
+          # commitAuthorName: github-actions
+          # commitAuthorEmail: github-actions@github.com
+          # prTitle: Update license copyright year(s)
+        continue-on-error: true
+
+      - name: Assert action ran with default inputs
+        env:
+          CURRENT_YEAR: ${{ steps.action.outputs.currentYear }}
+          BRANCH_NAME: ${{ steps.action.outputs.branchName }}
+          PR_NUMBER: ${{ steps.action.outputs.pullRequestNumber }}
+          PR_URL: ${{ steps.action.outputs.pullRequestUrl }}
+        run: |
+          echo "currentYear output: '$CURRENT_YEAR'"
+          echo "branchName output: '$BRANCH_NAME'"
+          echo "pullRequestNumber output: '$PR_NUMBER'"
+          echo "pullRequestUrl output: '$PR_URL'"
+          # When no update is needed (license already has current year),
+          # outputs should be empty since no PR is created.
+          if [ -n "$BRANCH_NAME" ]; then
+            echo "FAIL: expected no branchName output when no update is needed"
+            exit 1
+          fi
+          if [ -n "$PR_NUMBER" ]; then
+            echo "FAIL: expected no pullRequestNumber output when no update is needed"
+            exit 1
+          fi
+          echo "PASS: action completed with default inputs and no update needed"

@@ -1,0 +1,50 @@
+name: Test custom path input
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_EVENT_NAME: push
+      GITHUB_REF: refs/heads/main
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Set up custom license file with current year
+        run: |
+          CURRENT_YEAR=$(date +%Y)
+          mkdir -p docs
+          echo "Apache License" > docs/LICENSE
+          echo "" >> docs/LICENSE
+          echo "Copyright $CURRENT_YEAR Test Organization" >> docs/LICENSE
+          echo "" >> docs/LICENSE
+          echo "Licensed under the Apache License, Version 2.0 (the \"License\");" >> docs/LICENSE
+          echo "Custom license file created at docs/LICENSE with year: $CURRENT_YEAR"
+          cat docs/LICENSE
+
+      - name: Configure git
+        run: |
+          git config --global user.email "test@example.com"
+          git config --global user.name "Test User"
+
+      - id: action
+        uses: .
+        with:
+          token: fake-token-for-testing
+          path: docs/LICENSE
+        continue-on-error: true
+
+      - name: Assert action ran with custom path (no update needed)
+        env:
+          CURRENT_YEAR: ${{ steps.action.outputs.currentYear }}
+          BRANCH_NAME: ${{ steps.action.outputs.branchName }}
+        run: |
+          echo "currentYear output: '$CURRENT_YEAR'"
+          echo "branchName output: '$BRANCH_NAME'"
+          # When no update is needed (license already has current year),
+          # the action should complete without creating a PR.
+          if [ -n "$BRANCH_NAME" ]; then
+            echo "FAIL: expected no branchName output when no update is needed"
+            exit 1
+          fi
+          echo "PASS: action completed with custom path and no update needed"

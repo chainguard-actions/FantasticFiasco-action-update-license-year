@@ -1,0 +1,46 @@
+name: Test missing license file
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      # Set up a local bare git repository as the remote so git ls-remote and
+      # git push work without network access or GitHub credentials.
+      - name: Set up local git remote
+        run: |
+          git init --bare /tmp/test-remote.git
+          git remote set-url origin /tmp/test-remote.git
+          git push origin act-harness
+
+      - id: action
+        uses: .
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          # Point to a path that does not exist — action should fail
+          path: tests/fixtures/nonexistent/LICENSE_DOES_NOT_EXIST
+        continue-on-error: true
+
+      - name: Assert action failed due to missing file
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          # The action should fail because no files match the given path
+          if [ "$OUTCOME" != "failure" ]; then
+            echo "FAIL: expected action to fail due to missing file but got outcome=$OUTCOME"
+            exit 1
+          fi
+          echo "PASS: action correctly failed when no files matched the path"
+
+      # Switch back to act-harness before cleaning up the test branch
+      - name: Clean up test branch
+        if: always()
+        run: |
+          git switch act-harness 2>/dev/null || true
+          CURRENT_YEAR=$(date +%Y)
+          BRANCH="license/copyright-to-${CURRENT_YEAR}"
+          git branch -D "$BRANCH" 2>/dev/null || true
